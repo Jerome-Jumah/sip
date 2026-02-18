@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:sip_ua/sip_ua.dart';
 import 'package:webrtc/src/constants.dart';
-import 'package:webrtc/src/enums.dart';
 import 'package:webrtc/src/screen_share_service.dart';
 import 'package:webrtc/src/widgets/transfer_dialog.dart';
 
@@ -21,8 +20,7 @@ class CallScreenWidget extends StatefulWidget {
   State<CallScreenWidget> createState() => _MyCallScreenWidget();
 }
 
-class _MyCallScreenWidget extends State<CallScreenWidget>
-    implements SipUaHelperListener {
+class _MyCallScreenWidget extends State<CallScreenWidget> implements SipUaHelperListener {
   RTCVideoRenderer? _localRenderer = RTCVideoRenderer();
   RTCVideoRenderer? _remoteRenderer = RTCVideoRenderer();
   double? _localVideoHeight;
@@ -56,7 +54,7 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
 
   String? get remoteIdentity => call!.remote_identity;
 
-  Direction? get direction => stringToDirection(call!.direction);
+  Direction? get direction => call!.direction;
 
   Call? get call => widget._call;
 
@@ -114,10 +112,9 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
 
   @override
   void callStateChanged(Call call, CallState callState) {
-    if (callState.state == CallStateEnum.HOLD ||
-        callState.state == CallStateEnum.UNHOLD) {
+    if (callState.state == CallStateEnum.HOLD || callState.state == CallStateEnum.UNHOLD) {
       _hold = callState.state == CallStateEnum.HOLD;
-      _holdOriginator = stringToOriginator(callState.originator!);
+      _holdOriginator = callState.originator!;
       setState(() {});
       return;
     }
@@ -190,8 +187,7 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
 
   void _handleStreams(CallState event) async {
     MediaStream? stream = event.stream;
-    if (event.originator?.toUpperCase() ==
-        Originator.local.name.toUpperCase()) {
+    if (event.originator == Originator.local) {
       if (_localRenderer != null) {
         _localRenderer!.srcObject = stream;
       }
@@ -203,15 +199,12 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
         _videoSender = senders.firstWhere((s) => s.track?.kind == 'video');
       }
 
-      if (!kIsWeb &&
-          !WebRTC.platformIsDesktop &&
-          event.stream?.getAudioTracks().isNotEmpty == true) {
+      if (!kIsWeb && !WebRTC.platformIsDesktop && event.stream?.getAudioTracks().isNotEmpty == true) {
         event.stream?.getAudioTracks().first.enableSpeakerphone(false);
       }
       _localStream = stream;
     }
-    if (event.originator?.toUpperCase() ==
-        Originator.remote.name.toUpperCase()) {
+    if (event.originator == Originator.remote) {
       if (_remoteRenderer != null) {
         _remoteRenderer!.srcObject = stream;
       }
@@ -224,9 +217,7 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
   }
 
   void _resizeLocalVideo() {
-    _localVideoMargin = _remoteStream != null
-        ? EdgeInsets.only(top: 15, right: 15)
-        : EdgeInsets.all(0);
+    _localVideoMargin = _remoteStream != null ? EdgeInsets.only(top: 15, right: 15) : EdgeInsets.all(0);
     _localVideoWidth = _remoteStream != null
         ? MediaQuery.of(context).size.width / 4
         : MediaQuery.of(context).size.width;
@@ -246,11 +237,7 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
       'audio': true,
       'video': remoteHasVideo
           ? {
-              'mandatory': <String, dynamic>{
-                'minWidth': '640',
-                'minHeight': '480',
-                'minFrameRate': '30',
-              },
+              'mandatory': <String, dynamic>{'minWidth': '640', 'minHeight': '480', 'minFrameRate': '30'},
               'facingMode': 'user',
               'optional': <dynamic>[],
             }
@@ -259,12 +246,8 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
     MediaStream mediaStream;
 
     if (kIsWeb && remoteHasVideo) {
-      mediaStream = await navigator.mediaDevices.getDisplayMedia(
-        mediaConstraints,
-      );
-      MediaStream userStream = await navigator.mediaDevices.getUserMedia(
-        mediaConstraints,
-      );
+      mediaStream = await navigator.mediaDevices.getDisplayMedia(mediaConstraints);
+      MediaStream userStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
       mediaStream.addTrack(userStream.getAudioTracks()[0], addToNative: true);
     } else {
       if (!remoteHasVideo) {
@@ -273,10 +256,7 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
       mediaStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
     }
 
-    call!.answer(
-      helper!.buildCallOptions(!remoteHasVideo),
-      mediaStream: mediaStream,
-    );
+    call!.answer(helper!.buildCallOptions(!remoteHasVideo), mediaStream: mediaStream);
   }
 
   void _switchCamera() {
@@ -377,7 +357,7 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
   }
 
   void _handleDtmf(String tone) {
-    print('Dtmf tone => $tone');
+    debugPrint('Dtmf tone => $tone');
     call!.sendDTMF(tone);
   }
 
@@ -392,17 +372,9 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
       setState(() {
         call!.voiceOnly = false;
       });
-      helper!.renegotiate(
-        call: call!,
-        voiceOnly: false,
-        done: (IncomingMessage? incomingMessage) {},
-      );
+      helper!.renegotiate(call: call!, voiceOnly: false, done: (IncomingMessage? incomingMessage) {});
     } else {
-      helper!.renegotiate(
-        call: call!,
-        voiceOnly: true,
-        done: (IncomingMessage? incomingMessage) {},
-      );
+      helper!.renegotiate(call: call!, voiceOnly: true, done: (IncomingMessage? incomingMessage) {});
     }
   }
 
@@ -462,12 +434,7 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
       case CallStateEnum.CONNECTING:
         if (direction == Direction.incoming) {
           basicActions.add(
-            ActionButton(
-              title: "Accept",
-              fillColor: Colors.green,
-              icon: Icons.phone,
-              onPressed: () => _handleAccept(),
-            ),
+            ActionButton(title: "Accept", fillColor: Colors.green, icon: Icons.phone, onPressed: () => _handleAccept()),
           );
           basicActions.add(hangupBtn);
         } else {
@@ -487,20 +454,10 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
           );
 
           if (voiceOnly) {
-            advanceActions.add(
-              ActionButton(
-                title: "keypad",
-                icon: Icons.dialpad,
-                onPressed: () => _handleKeyPad(),
-              ),
-            );
+            advanceActions.add(ActionButton(title: "keypad", icon: Icons.dialpad, onPressed: () => _handleKeyPad()));
           } else {
             advanceActions.add(
-              ActionButton(
-                title: "switch camera",
-                icon: Icons.switch_video,
-                onPressed: () => _switchCamera(),
-              ),
+              ActionButton(title: "switch camera", icon: Icons.switch_video, onPressed: () => _switchCamera()),
             );
           }
 
@@ -514,11 +471,7 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
               ),
             );
             advanceActions2.add(
-              ActionButton(
-                title: 'request video',
-                icon: Icons.videocam,
-                onPressed: () => _handleVideoUpgrade(),
-              ),
+              ActionButton(title: 'request video', icon: Icons.videocam, onPressed: () => _handleVideoUpgrade()),
             );
           } else {
             advanceActions.add(
@@ -533,12 +486,8 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
 
           advanceActions2.add(
             ActionButton(
-              title: _screenSharingService.isScreenSharing
-                  ? 'Stop Share'
-                  : 'Share',
-              icon: _screenSharingService.isScreenSharing
-                  ? Icons.stop_screen_share
-                  : Icons.screen_share,
+              title: _screenSharingService.isScreenSharing ? 'Stop Share' : 'Share',
+              icon: _screenSharingService.isScreenSharing ? Icons.stop_screen_share : Icons.screen_share,
               checked: _screenSharingService.isScreenSharing,
               onPressed: () => _toggleScreenShare(),
             ),
@@ -557,19 +506,11 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
 
           if (_showNumPad) {
             basicActions.add(
-              ActionButton(
-                title: "back",
-                icon: Icons.keyboard_arrow_down,
-                onPressed: () => _handleKeyPad(),
-              ),
+              ActionButton(title: "back", icon: Icons.keyboard_arrow_down, onPressed: () => _handleKeyPad()),
             );
           } else {
             basicActions.add(
-              ActionButton(
-                title: "transfer",
-                icon: Icons.phone_forwarded,
-                onPressed: () => _handleTransfer(),
-              ),
+              ActionButton(title: "transfer", icon: Icons.phone_forwarded, onPressed: () => _handleTransfer()),
             );
           }
         }
@@ -582,7 +523,7 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
         basicActions.add(hangupBtn);
         break;
       default:
-        print('Other state => $_state');
+        debugPrint('Other state => $_state');
         break;
     }
 
@@ -595,10 +536,7 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
         actionWidgets.add(
           Padding(
             padding: const EdgeInsets.all(3),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: advanceActions2,
-            ),
+            child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: advanceActions2),
           ),
         );
       }
@@ -606,10 +544,7 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
         actionWidgets.add(
           Padding(
             padding: const EdgeInsets.all(3),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: advanceActions,
-            ),
+            child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: advanceActions),
           ),
         );
       }
@@ -618,10 +553,7 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
     actionWidgets.add(
       Padding(
         padding: const EdgeInsets.all(3),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: basicActions,
-        ),
+        child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: basicActions),
       ),
     );
 
@@ -638,12 +570,7 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
 
     if (!voiceOnly && _remoteStream != null) {
       stackWidgets.add(
-        Center(
-          child: RTCVideoView(
-            _remoteRenderer!,
-            objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-          ),
-        ),
+        Center(child: RTCVideoView(_remoteRenderer!, objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover)),
       );
     }
 
@@ -678,8 +605,7 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
                   child: Padding(
                     padding: const EdgeInsets.all(6),
                     child: Text(
-                      (voiceOnly ? 'VOICE CALL' : 'VIDEO CALL') +
-                          (_hold ? ' PAUSED BY ${_holdOriginator!.name}' : ''),
+                      (voiceOnly ? 'VOICE CALL' : 'VIDEO CALL') + (_hold ? ' PAUSED BY ${_holdOriginator!.name}' : ''),
                       style: TextStyle(fontSize: 24, color: textColor),
                     ),
                   ),
@@ -687,10 +613,7 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
                 Center(
                   child: Padding(
                     padding: const EdgeInsets.all(6),
-                    child: Text(
-                      '$remoteIdentity',
-                      style: TextStyle(fontSize: 18, color: textColor),
-                    ),
+                    child: Text('$remoteIdentity', style: TextStyle(fontSize: 18, color: textColor)),
                   ),
                 ),
                 Center(
@@ -699,10 +622,7 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
                     child: ValueListenableBuilder<String>(
                       valueListenable: _timeLabel,
                       builder: (context, value, child) {
-                        return Text(
-                          _timeLabel.value,
-                          style: TextStyle(fontSize: 14, color: textColor),
-                        );
+                        return Text(_timeLabel.value, style: TextStyle(fontSize: 14, color: textColor));
                       },
                     ),
                   ),
@@ -714,17 +634,12 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
       ]);
     }
 
-    if (_screenSharingService.isScreenSharing &&
-        _screenSharingService.screenRenderer != null) {
+    if (_screenSharingService.isScreenSharing && _screenSharingService.screenRenderer != null) {
       stackWidgets.add(
         Positioned(
           bottom: 100,
           right: 10,
-          child: SizedBox(
-            height: 150,
-            width: 200,
-            child: RTCVideoView(_screenSharingService.screenRenderer!),
-          ),
+          child: SizedBox(height: 150, width: 200, child: RTCVideoView(_screenSharingService.screenRenderer!)),
         ),
       );
     }
@@ -735,17 +650,10 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: Text('[$direction] ${_state.name}'),
-      ),
+      appBar: AppBar(automaticallyImplyLeading: false, title: Text('[$direction] ${_state.name}')),
       body: _buildContent(),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      floatingActionButton: Container(
-        width: 320,
-        padding: EdgeInsets.only(bottom: 24.0),
-        child: _buildActionButtons(),
-      ),
+      floatingActionButton: Container(width: 320, padding: EdgeInsets.only(bottom: 24.0), child: _buildActionButtons()),
     );
   }
 

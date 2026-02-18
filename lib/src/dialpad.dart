@@ -20,8 +20,7 @@ class DialPadWidget extends StatefulWidget {
   State<DialPadWidget> createState() => _MyDialPadWidget();
 }
 
-class _MyDialPadWidget extends State<DialPadWidget>
-    implements SipUaHelperListener {
+class _MyDialPadWidget extends State<DialPadWidget> implements SipUaHelperListener {
   String? _dest;
   SIPUAHelper? get helper => widget._helper;
   TextEditingController? _textController;
@@ -53,13 +52,9 @@ class _MyDialPadWidget extends State<DialPadWidget>
     helper!.addSipUaHelperListener(this);
   }
 
-  Future<Widget?> _handleCall(
-    BuildContext context, [
-    bool voiceOnly = false,
-  ]) async {
+  Future<Widget?> _handleCall(BuildContext context, [bool voiceOnly = false]) async {
     final dest = _textController?.text;
-    if (defaultTargetPlatform == TargetPlatform.android ||
-        defaultTargetPlatform == TargetPlatform.iOS) {
+    if (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS) {
       await Permission.microphone.request();
       await Permission.camera.request();
     }
@@ -85,17 +80,17 @@ class _MyDialPadWidget extends State<DialPadWidget>
       return null;
     }
 
-    var mediaConstraints = <String, dynamic>{
-      'audio': true,
-      'video': {
-        'mandatory': <String, dynamic>{
-          'minWidth': '640',
-          'minHeight': '480',
-          'minFrameRate': '30',
-        },
-        'facingMode': 'user',
-      },
-    };
+    // var mediaConstraints = <String, dynamic>{
+    //   'audio': true,
+    //   'video': {
+    //     'mandatory': <String, dynamic>{
+    //       'minWidth': '640',
+    //       'minHeight': '480',
+    //       'minFrameRate': '30',
+    //     },
+    //     'facingMode': 'user',
+    //   },
+    // };
 
     MediaStream mediaStream;
 
@@ -106,16 +101,12 @@ class _MyDialPadWidget extends State<DialPadWidget>
         'audio': false, // getDisplayMedia should not request audio
       };
 
-      mediaStream = await navigator.mediaDevices.getDisplayMedia(
-        displayConstraints,
-      );
+      mediaStream = await navigator.mediaDevices.getDisplayMedia(displayConstraints);
 
       // Get user media for audio separately
       var audioConstraints = <String, dynamic>{'audio': true, 'video': false};
 
-      MediaStream userStream = await navigator.mediaDevices.getUserMedia(
-        audioConstraints,
-      );
+      MediaStream userStream = await navigator.mediaDevices.getUserMedia(audioConstraints);
 
       final audioTracks = userStream.getAudioTracks();
       if (audioTracks.isNotEmpty) {
@@ -205,17 +196,10 @@ class _MyDialPadWidget extends State<DialPadWidget>
   }
 
   List<Widget> _buildDialPad() {
-    Color? textFieldColor = Theme.of(
-      context,
-    ).textTheme.bodyMedium?.color?.withValues(alpha: 0.5);
-    Color? textFieldFill = Theme.of(
-      context,
-    ).buttonTheme.colorScheme?.surfaceContainerLowest;
+    Color? textFieldColor = Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5);
+    Color? textFieldFill = Theme.of(context).buttonTheme.colorScheme?.surfaceContainerLowest;
     return [
-      Align(
-        alignment: AlignmentDirectional.centerStart,
-        child: Text('Destination URL'),
-      ),
+      Align(alignment: AlignmentDirectional.centerStart, child: Text('Destination URL')),
       const SizedBox(height: 8),
       TextField(
         keyboardType: TextInputType.text,
@@ -252,15 +236,8 @@ class _MyDialPadWidget extends State<DialPadWidget>
           crossAxisAlignment: CrossAxisAlignment.center,
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: <Widget>[
-            ActionButton(
-              icon: Icons.videocam,
-              onPressed: () => _handleCall(context),
-            ),
-            ActionButton(
-              icon: Icons.dialer_sip,
-              fillColor: Colors.green,
-              onPressed: () => _handleCall(context, true),
-            ),
+            ActionButton(icon: Icons.videocam, onPressed: () => _handleCall(context)),
+            ActionButton(icon: Icons.dialer_sip, fillColor: Colors.green, onPressed: () => _handleCall(context, true)),
             ActionButton(
               icon: Icons.keyboard_arrow_left,
               onPressed: () => _handleBackSpace(),
@@ -358,10 +335,7 @@ class _MyDialPadWidget extends State<DialPadWidget>
           ),
           SizedBox(height: 8),
           Center(
-            child: Text(
-              'Received Message: $receivedMsg',
-              style: TextStyle(fontSize: 16, color: textColor),
-            ),
+            child: Text('Received Message: $receivedMsg', style: TextStyle(fontSize: 16, color: textColor)),
           ),
           SizedBox(height: 8),
           Column(
