@@ -15,15 +15,13 @@ class RegisterWidget extends StatefulWidget {
   State<RegisterWidget> createState() => _MyRegisterWidget();
 }
 
-class _MyRegisterWidget extends State<RegisterWidget>
-    implements SipUaHelperListener {
+class _MyRegisterWidget extends State<RegisterWidget> implements SipUaHelperListener {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _portController = TextEditingController();
   final TextEditingController _wsUriController = TextEditingController();
   final TextEditingController _sipUriController = TextEditingController();
   final TextEditingController _displayNameController = TextEditingController();
-  final TextEditingController _authorizationUserController =
-      TextEditingController();
+  final TextEditingController _authorizationUserController = TextEditingController();
   final Map<String, String> _wsExtraHeaders = {
     // 'Origin': ' https://tryit.jssip.net',
     // 'Host': 'tryit.jssip.net:10443'
@@ -31,7 +29,7 @@ class _MyRegisterWidget extends State<RegisterWidget>
   late SharedPreferences _preferences;
   late RegistrationState _registerState;
 
-  TransportType _selectedTransport = TransportType.TCP;
+  TransportType _selectedTransport = TransportType.WS;
 
   SIPUAHelper? get helper => widget._helper;
 
@@ -55,6 +53,7 @@ class _MyRegisterWidget extends State<RegisterWidget>
     _sipUriController.dispose();
     _displayNameController.dispose();
     _authorizationUserController.dispose();
+    _portController.dispose();
     super.dispose();
   }
 
@@ -68,16 +67,12 @@ class _MyRegisterWidget extends State<RegisterWidget>
   void _loadSettings() async {
     _preferences = await SharedPreferences.getInstance();
     setState(() {
-      _portController.text = "5060";
-      _wsUriController.text =
-          _preferences.getString('ws_uri') ?? 'wss://tryit.jssip.net:10443';
-      _sipUriController.text =
-          _preferences.getString('sip_uri') ?? 'hello_flutter@tryit.jssip.net';
-      _displayNameController.text =
-          _preferences.getString('display_name') ?? 'Flutter SIP UA';
+      _portController.text = "4500";
+      _wsUriController.text = _preferences.getString('ws_uri') ?? 'ws://localhost:4500/';
+      _sipUriController.text = _preferences.getString('sip_uri') ?? 'sip:1001@localhost:4500';
+      _displayNameController.text = _preferences.getString('display_name') ?? 'Flutter SIP UA';
       _passwordController.text = _preferences.getString('password') ?? '';
-      _authorizationUserController.text =
-          _preferences.getString('auth_user') ?? '';
+      _authorizationUserController.text = _preferences.getString('auth_user') ?? '';
     });
   }
 
@@ -144,18 +139,11 @@ class _MyRegisterWidget extends State<RegisterWidget>
   @override
   Widget build(BuildContext context) {
     Color? textColor = Theme.of(context).textTheme.bodyMedium?.color;
-    Color? textFieldFill = Theme.of(
-      context,
-    ).buttonTheme.colorScheme?.surfaceContainerLowest;
+    Color? textFieldFill = Theme.of(context).buttonTheme.colorScheme?.surfaceContainerLowest;
     currentUser = context.watch<SipUserCubit>();
 
-    OutlineInputBorder border = OutlineInputBorder(
-      borderSide: BorderSide.none,
-      borderRadius: BorderRadius.circular(5),
-    );
-    Color? textLabelColor = Theme.of(
-      context,
-    ).textTheme.bodyMedium?.color?.withValues(alpha: 0.5);
+    OutlineInputBorder border = OutlineInputBorder(borderSide: BorderSide.none, borderRadius: BorderRadius.circular(5));
+    Color? textLabelColor = Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5);
     return Scaffold(
       appBar: AppBar(title: Text("SIP Account")),
       bottomNavigationBar: Padding(
@@ -168,10 +156,7 @@ class _MyRegisterWidget extends State<RegisterWidget>
                 Expanded(
                   child: SizedBox(
                     height: 40,
-                    child: ElevatedButton(
-                      child: Text('Register'),
-                      onPressed: () => _register(context),
-                    ),
+                    child: ElevatedButton(child: Text('Register'), onPressed: () => _register(context)),
                   ),
                 ),
               ],
@@ -245,9 +230,7 @@ class _MyRegisterWidget extends State<RegisterWidget>
               border: border,
               enabledBorder: border,
               focusedBorder: border,
-              hintText: _authorizationUserController.text.isEmpty
-                  ? '[Empty]'
-                  : null,
+              hintText: _authorizationUserController.text.isEmpty ? '[Empty]' : null,
             ),
           ),
           SizedBox(height: 15),

@@ -367,21 +367,15 @@ class _MyDialPadWidget extends State<DialPadWidget> implements SipUaHelperListen
         Navigator.pushNamed(context, '/callscreen', arguments: call);
         break;
       case CallStateEnum.FAILED:
-        reRegisterWithCurrentUser();
+        _logger.w("Call failed; keeping current SIP registration active.");
         break;
       case CallStateEnum.ENDED:
-        reRegisterWithCurrentUser();
+        _logger.i("Call ended; keeping current SIP registration active.");
         break;
       default:
     }
   }
 
-  void reRegisterWithCurrentUser() async {
-    if (currentUserCubit.state == null) return;
-    if (helper!.registered) helper!.unregister();
-    _logger.i("Re-registering");
-    currentUserCubit.register(currentUserCubit.state!);
-  }
 
   @override
   void onNewMessage(SIPMessageRequest msg) {
