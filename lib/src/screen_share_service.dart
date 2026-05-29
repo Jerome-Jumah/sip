@@ -1,7 +1,10 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 class ScreenSharingService {
+  static const MethodChannel _projectionChannel = MethodChannel('media_projection');
+
   MediaStream? _screenStream;
   RTCVideoRenderer? _screenRenderer;
   bool _isScreenSharing = false;
@@ -18,23 +21,22 @@ class ScreenSharingService {
   Future<MediaStream?> startScreenShare() async {
     try {
       if (kIsWeb) {
-        // Web implementation
-        _screenStream = await navigator.mediaDevices.getDisplayMedia({
-          'video': true,
-          'audio': true, // Include system audio if needed
-        });
+        _screenStream = await navigator.mediaDevices.getDisplayMedia({'video': true, 'audio': true});
       } else {
-        // Mobile implementation
+        if (WebRTC.platformIsAndroid) {
+          final granted = await Helper.requestCapturePermission();
+          if (!granted) {
+            debugPrint('Screen sharing permission denied.');
+            return null;
+          }
+
+          await _projectionChannel.invokeMethod<void>('startProjectionService');
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+        }
+
         _screenStream = await navigator.mediaDevices.getDisplayMedia({
-          'video': {
-            'deviceId': 'screen',
-            'mandatory': {
-              'minWidth': 1280,
-              'minHeight': 720,
-              'maxWidth': 1920,
-              'maxHeight': 1080,
-            },
-          },
+          'video': {'mediaSource': 'screen'},
+          'audio': false,
         });
       }
 
@@ -46,6 +48,7 @@ class ScreenSharingService {
       return _screenStream;
     } catch (e) {
       debugPrint('Screen sharing error: $e');
+      await _stopProjectionService();
       return null;
     }
   }
@@ -63,10 +66,21 @@ class ScreenSharingService {
     }
 
     _isScreenSharing = false;
+    await _stopProjectionService();
   }
 
   void dispose() {
     stopScreenShare();
     _screenRenderer?.dispose();
+  }
+
+  Future<void> _stopProjectionService() async {
+    if (kIsWeb || !WebRTC.platformIsAndroid) return;
+
+    try {
+      await _projectionChannel.invokeMethod<void>('stopProjectionService');
+    } catch (e) {
+      debugPrint('Failed to stop screen sharing service: $e');
+    }
   }
 }

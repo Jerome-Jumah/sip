@@ -47,6 +47,7 @@ class _MyCallScreenWidget extends State<CallScreenWidget> implements SipUaHelper
   final ScreenSharingService _screenSharingService = ScreenSharingService();
 
   RTCRtpSender? _videoSender;
+  bool _restoringCamera = false;
 
   SIPUAHelper? get helper => widget._helper;
 
@@ -170,6 +171,7 @@ class _MyCallScreenWidget extends State<CallScreenWidget> implements SipUaHelper
 
   void _cleanUp() {
     if (_localStream == null) return;
+    unawaited(_screenSharingService.stopScreenShare());
     _localStream?.getTracks().forEach((track) {
       track.stop();
     });
@@ -193,11 +195,7 @@ class _MyCallScreenWidget extends State<CallScreenWidget> implements SipUaHelper
       }
       _localStream = stream;
       // Attach sender for switching between camera/screen
-      if (call?.session.connection != null) {
-        final pc = call!.session.connection!;
-        final senders = await pc.getSenders();
-        _videoSender = senders.firstWhere((s) => s.track?.kind == 'video');
-      }
+      await _getVideoSender();
 
       if (!kIsWeb && !WebRTC.platformIsDesktop && event.stream?.getAudioTracks().isNotEmpty == true) {
         event.stream?.getAudioTracks().first.enableSpeakerphone(false);
@@ -314,45 +312,71 @@ class _MyCallScreenWidget extends State<CallScreenWidget> implements SipUaHelper
 
   Future<void> _toggleScreenShare() async {
     if (_screenSharingService.isScreenSharing) {
-      // Stop sharing
-      await _screenSharingService.stopScreenShare();
-
-      if (_localStream != null && _videoSender != null) {
-        // Restore camera video track
-        final camTrack = _localStream!.getVideoTracks().first;
-        await _videoSender!.replaceTrack(camTrack);
-
-        // Restore preview
-        _localRenderer?.srcObject = _localStream;
-      }
-
-      setState(() {});
+      await _restoreCameraAfterScreenShare();
     } else {
-      // Start sharing
       final screenStream = await _screenSharingService.startScreenShare();
       if (screenStream != null) {
         final screenTrack = screenStream.getVideoTracks().first;
 
-        // Bind to preview
         _localRenderer?.srcObject = screenStream;
 
-        // Replace outgoing video track
-        if (_videoSender == null && call?.session.connection != null) {
-          final pc = call!.session.connection!;
-          final senders = await pc.getSenders();
-          _videoSender = senders.firstWhere((s) => s.track?.kind == 'video');
+        final videoSender = await _getVideoSender();
+
+        if (videoSender != null) {
+          await videoSender.replaceTrack(screenTrack);
         }
 
-        if (_videoSender != null) {
-          await _videoSender!.replaceTrack(screenTrack);
-        }
-
-        screenStream.getVideoTracks().first.onEnded = () {
-          _toggleScreenShare(); // auto revert to camera
+        screenTrack.onEnded = () {
+          unawaited(_restoreCameraAfterScreenShare());
         };
       }
 
       setState(() {});
+    }
+  }
+
+  Future<RTCRtpSender?> _getVideoSender() async {
+    if (_videoSender?.track?.kind == 'video') {
+      return _videoSender;
+    }
+
+    final pc = call?.session.connection;
+    if (pc == null) {
+      return null;
+    }
+
+    final senders = await pc.getSenders();
+    for (final sender in senders) {
+      if (sender.track?.kind == 'video') {
+        _videoSender = sender;
+        return sender;
+      }
+    }
+
+    return null;
+  }
+
+  Future<void> _restoreCameraAfterScreenShare() async {
+    if (_restoringCamera) return;
+    _restoringCamera = true;
+
+    try {
+      final videoTracks = _localStream?.getVideoTracks() ?? <MediaStreamTrack>[];
+      final camTrack = videoTracks.isNotEmpty ? videoTracks.first : null;
+      final videoSender = await _getVideoSender();
+
+      if (camTrack != null && videoSender != null) {
+        await videoSender.replaceTrack(camTrack);
+      }
+
+      _localRenderer?.srcObject = _localStream;
+      await _screenSharingService.stopScreenShare();
+
+      if (mounted) {
+        setState(() {});
+      }
+    } finally {
+      _restoringCamera = false;
     }
   }
 
